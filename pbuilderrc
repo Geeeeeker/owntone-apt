@@ -26,6 +26,15 @@ elif [ "$OS" == "raspberrypi" ]; then
     PBUILDERSATISFYDEPENDSCMD="/usr/lib/pbuilder/pbuilder-satisfydepends-apt"
     : ${DIST:="bullseye"}
     : ${ARCH:="armhf"}
+elif [ "$OS" == "ubuntu" ]; then
+    MIRRORSITE="http://archive.ubuntu.com/ubuntu/"
+    COMPONENTS="main restricted universe multiverse"
+    DEBOOTSTRAPOPTS=("${DEBOOTSTRAPOPTS[@]}" "--keyring=/usr/share/keyrings/ubuntu-archive-keyring.gpg")
+    PBUILDERSATISFYDEPENDSCMD="/usr/lib/pbuilder/pbuilder-satisfydepends-apt"
+    # 可选：添加安全更新源，避免某些包过旧
+    # OTHERMIRROR="deb http://security.ubuntu.com/ubuntu $DIST-security main restricted universe multiverse"
+    : ${DIST:="jammy"}
+    : ${ARCH:="arm64"}
 else
     echo "Unknown OS: $OS"
     exit 1
