@@ -33,11 +33,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -yq reprepro
 
-      - name: Import GPG key
-        env:
-          UBUNTU_REPO_SECKEY: ${{ secrets.UBUNTU_REPO_SECKEY }}
-        run: |
-          echo -n "$UBUNTU_REPO_SECKEY" | gpg --import
+
 
       # 可选：如果你希望从之前的 release 中下载已有的仓库快照，可恢复此步
       # - name: Download and unpack latest repo
