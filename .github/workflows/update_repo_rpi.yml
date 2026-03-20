@@ -16,7 +16,7 @@ jobs:
   update_repo:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - name: Prepare tmp directories
         run: |
@@ -43,25 +43,21 @@ jobs:
           ls -lR repo/rpi/var
 
       - name: Download packages
-        uses: dawidd6/action-download-artifact@v2
+        uses: dawidd6/action-download-artifact@v3
         with:
           workflow: create_dpkg.yml
           workflow_conclusion: success
           path: dl
+          name: "raspbian|raspberrypi"
+          name_is_regexp: true
 
-      # Moves from e.g. dl/raspberrypi-bullseye-arm64 to repo/rpi/incoming
       - name: Add incoming packages
         working-directory: repo/rpi
         env:
           DPKGDIR: ../../dl
         run: |
-          test ! -d $DPKGDIR/raspbian-buster-armhf || mv $DPKGDIR/raspbian-buster-armhf/* var/incoming/
-          test ! -d $DPKGDIR/raspbian-bullseye-armhf || mv $DPKGDIR/raspbian-bullseye-armhf/* var/incoming/
-          test ! -d $DPKGDIR/raspbian-bookworm-armhf || mv $DPKGDIR/raspbian-bookworm-armhf/* var/incoming/
-          test ! -d $DPKGDIR/raspbian-trixie-armhf || mv $DPKGDIR/raspbian-trixie-armhf/* var/incoming/
-          test ! -d $DPKGDIR/raspberrypi-bullseye-arm64 || mv $DPKGDIR/raspberrypi-bullseye-arm64/* var/incoming/
-          test ! -d $DPKGDIR/raspberrypi-bookworm-arm64 || mv $DPKGDIR/raspberrypi-bookworm-arm64/* var/incoming/
-          test ! -d $DPKGDIR/raspberrypi-trixie-arm64 || mv $DPKGDIR/raspberrypi-trixie-arm64/* var/incoming/
+          find $DPKGDIR -type f -print0 | xargs -0 cp -t var/incoming
+          ls -l var/incoming
           reprepro processincoming default
 
       - name: Pack and prepare release
