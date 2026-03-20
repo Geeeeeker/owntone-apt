@@ -20,7 +20,7 @@ jobs:
 
       - name: Prepare tmp directories
         run: |
-          mkdir dl
+          mkdir -p dl/artifacts
           mkdir dist
 
       - name: Install reprepro
@@ -47,16 +47,16 @@ jobs:
         with:
           workflow: create_dpkg.yml
           workflow_conclusion: success
-          path: dl
+          path: dl/artifacts
           name: "raspbian|raspberrypi"
           name_is_regexp: true
 
       - name: Add incoming packages
         working-directory: repo/rpi
         env:
-          DPKGDIR: ../../dl
+          DPKGDIR: ../../dl/artifacts
         run: |
-          find $DPKGDIR -type f -print0 | xargs -0 cp -n -t var/incoming
+          find $DPKGDIR -type f -print0 | xargs -0 cp --update=none --target-directory=var/incoming
           ls -l var/incoming
           reprepro processincoming default
 
