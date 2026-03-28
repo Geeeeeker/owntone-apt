@@ -1,7 +1,7 @@
 name: Build Ubuntu packages
 
 on:
-  workflow_dispatch:  # 仅支持手动触发
+  workflow_dispatch:
     inputs:
       ubuntu-focal-amd64:
         type: boolean
@@ -192,15 +192,19 @@ jobs:
           wget -O build_dir/${pkgname}_${version}.orig.tar.gz https://github.com/${owner}/${repository}/archive/${commit}.tar.gz
           tar xzf build_dir/${pkgname}_${version}.orig.tar.gz --directory build_dir
           cp -a ${repository}/debian build_dir/${repository}-${commit}
-      # ========== 关键修改：对所有 i386 架构移除 libwebsockets-dev 依赖 ==========
-      - name: Fix i386 dependencies (remove libwebsockets-dev for i386)
-        if: ${{ matrix.targets.ARCH == 'i386' }}   # 适用于所有 i386 构建（focal, jammy 等）
+      - name: Fix i386 dependencies (remove libwebsockets-dev)
+        if: ${{ matrix.targets.ARCH == 'i386' }}
         working-directory: build_dir/${{ matrix.packages.repository }}-${{ matrix.packages.commit }}
         run: |
-          # 移除 debian/control 中的 libwebsockets-dev 依赖行
           sed -i '/libwebsockets-dev/d' debian/control
           echo "Removed libwebsockets-dev from debian/control for i386 build"
-      # ========================================================================
+      - name: Disable Chromecast on i386 (configure fails)
+        if: ${{ matrix.targets.ARCH == 'i386' }}
+        working-directory: build_dir/${{ matrix.packages.repository }}-${{ matrix.packages.commit }}
+        run: |
+          # 修改 debian/rules，将 --enable-chromecast 替换为 --disable-chromecast
+          sed -i 's/--enable-chromecast/--disable-chromecast/g' debian/rules
+          echo "Disabled Chromecast support for i386 build"
       - name: Build package
         working-directory: build_dir/${{ matrix.packages.repository }}-${{ matrix.packages.commit }}
         env:
