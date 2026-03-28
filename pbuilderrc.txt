@@ -1,0 +1,50 @@
+#!/bin/bash
+set -e
+
+# 仅支持 Ubuntu
+if [ "$OS" != "ubuntu" ]; then
+    echo "Unsupported OS: $OS (only 'ubuntu' is supported)"
+    exit 1
+fi
+
+# 设置镜像源和组件
+MIRRORSITE="http://archive.ubuntu.com/ubuntu"
+COMPONENTS="main universe restricted multiverse"
+
+# 对于不同架构可能需要特殊镜像
+if [ "$ARCH" = "arm64" ] || [ "$ARCH" = "armhf" ]; then
+    # 使用 ports 镜像
+    MIRRORSITE="http://ports.ubuntu.com/ubuntu-ports"
+fi
+
+# 可选：添加安全更新源
+OTHERMIRROR="deb $MIRRORSITE ${DIST}-security $COMPONENTS|deb $MIRRORSITE ${DIST}-updates $COMPONENTS"
+
+# 添加 keyring
+DEBOOTSTRAPOPTS=("${DEBOOTSTRAPOPTS[@]}" "--keyring=/usr/share/keyrings/ubuntu-archive-keyring.gpg")
+PBUILDERSATISFYDEPENDSCMD="/usr/lib/pbuilder/pbuilder-satisfydepends-apt"
+
+# 验证必要变量
+if [ -z "$DIST" ] || [ -z "$ARCH" ]; then
+    echo "DIST and ARCH must be set"
+    exit 1
+fi
+
+NAME="$OS-$DIST-$ARCH"
+
+# 预安装一些依赖以加速构建（可根据实际调整）
+EXTRAPACKAGES="debhelper autoconf libtool gettext gawk bison flex gperf \
+  libavcodec-dev libavformat-dev libavutil-dev libavfilter-dev \
+  libavahi-client-dev libsqlite3-dev libconfuse-dev libxml2-dev \
+  libasound2-dev libpulse-dev zlib1g-dev libunistring-dev libevent-dev"
+
+# 设置 pbuilder 路径
+BASEDIR="/var/cache"
+BASETGZ="$BASEDIR/pbuilder/$NAME-base.tgz"
+DISTRIBUTION="$DIST"
+BUILDRESULT="$BASEDIR/pbuilder/result/$NAME"
+APTCACHE="$BASEDIR/pbuilder/aptcache/$NAME"
+BUILDPLACE="$BASEDIR/pbuilder/build"
+HOOKDIR="$BASEDIR/pbuilder/hook.d/"
+
+mkdir -p $APTCACHE
