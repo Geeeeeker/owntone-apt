@@ -21,6 +21,8 @@ on:
         type: boolean
       debian-trixie-amd64:
         type: boolean
+      debian-forky-amd64:
+        type: boolean
   schedule:
     # Rebuild once a month. Could be 0 0 1, but Github servers are probably
     # quite busy at that time.
@@ -40,14 +42,17 @@ env:
   debian-bullseye-amd64: '{"image":"debian-bullseye-amd64","OS":"debian","DIST":"bullseye","ARCH":"amd64","FLAGS":"-- --binary-arch"}'
   debian-bookworm-amd64: '{"image":"debian-bookworm-amd64","OS":"debian","DIST":"bookworm","ARCH":"amd64","FLAGS":"-- --binary-arch"}'
   debian-trixie-amd64: '{"image":"debian-trixie-amd64","OS":"debian","DIST":"trixie","ARCH":"amd64","FLAGS":"-- --binary-arch"}'
+  debian-forky-amd64: '{"image":"debian-forky-amd64","OS":"debian","DIST":"forky","ARCH":"amd64","FLAGS":"-- --binary-arch"}'
 
 jobs:
   prepare:
+    name: Plan jobs
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      targets: ${{ steps.set-targets.outputs.targets }}
+      packages: ${{ steps.set-packages.outputs.packages }}
     env:
-      PKGCONF: pkgconf
+      BUILDTARGETS: buildtargets.json
       BUILD_raspbian-bullseye-armhf: ${{ github.event.inputs.raspbian-bullseye-armhf || 'true' }}
       BUILD_raspbian-bookworm-armhf: ${{ github.event.inputs.raspbian-bookworm-armhf || 'true' }}
       BUILD_raspbian-trixie-armhf: ${{ github.event.inputs.raspbian-trixie-armhf || 'true' }}
@@ -57,75 +62,83 @@ jobs:
       BUILD_debian-bullseye-amd64: ${{ github.event.inputs.debian-bullseye-amd64 || 'true' }}
       BUILD_debian-bookworm-amd64: ${{ github.event.inputs.debian-bookworm-amd64 || 'true' }}
       BUILD_debian-trixie-amd64: ${{ github.event.inputs.debian-trixie-amd64 || 'true' }}
+      BUILD_debian-forky-amd64: ${{ github.event.inputs.debian-forky-amd64 || 'true' }}
 
     steps:
+      - uses: actions/checkout@v6
+
       - name: Add raspbian-bullseye-armhf
         if: ${{ env.BUILD_raspbian-bullseye-armhf == 'true' }}
-        run: echo -n '${{ env.raspbian-bullseye-armhf }},' >> $PKGCONF
+        run: echo -n '${{ env.raspbian-bullseye-armhf }},' >> $BUILDTARGETS
 
       - name: Add raspbian-bookworm-armhf
         if: ${{ env.BUILD_raspbian-bookworm-armhf == 'true' }}
-        run: echo -n '${{ env.raspbian-bookworm-armhf }},' >> $PKGCONF
+        run: echo -n '${{ env.raspbian-bookworm-armhf }},' >> $BUILDTARGETS
 
       - name: Add raspbian-trixie-armhf
         if: ${{ env.BUILD_raspbian-trixie-armhf == 'true' }}
-        run: echo -n '${{ env.raspbian-trixie-armhf }},' >> $PKGCONF
+        run: echo -n '${{ env.raspbian-trixie-armhf }},' >> $BUILDTARGETS
 
       - name: Add raspberrypi-bullseye-arm64
         if: ${{ env.BUILD_raspberrypi-bullseye-arm64 == 'true' }}
-        run: echo -n '${{ env.raspberrypi-bullseye-arm64 }},' >> $PKGCONF
+        run: echo -n '${{ env.raspberrypi-bullseye-arm64 }},' >> $BUILDTARGETS
 
       - name: Add raspberrypi-bookworm-arm64
         if: ${{ env.BUILD_raspberrypi-bookworm-arm64 == 'true' }}
-        run: echo -n '${{ env.raspberrypi-bookworm-arm64 }},' >> $PKGCONF
+        run: echo -n '${{ env.raspberrypi-bookworm-arm64 }},' >> $BUILDTARGETS
 
       - name: Add raspberrypi-trixie-arm64
         if: ${{ env.BUILD_raspberrypi-trixie-arm64 == 'true' }}
-        run: echo -n '${{ env.raspberrypi-trixie-arm64 }},' >> $PKGCONF
+        run: echo -n '${{ env.raspberrypi-trixie-arm64 }},' >> $BUILDTARGETS
 
       - name: Add debian-bullseye-amd64
         if: ${{ env.BUILD_debian-bullseye-amd64 == 'true' }}
-        run: echo -n '${{ env.debian-bullseye-amd64 }},' >> $PKGCONF
+        run: echo -n '${{ env.debian-bullseye-amd64 }},' >> $BUILDTARGETS
 
       - name: Add debian-bookworm-amd64
         if: ${{ env.BUILD_debian-bookworm-amd64 == 'true' }}
-        run: echo -n '${{ env.debian-bookworm-amd64 }},' >> $PKGCONF
+        run: echo -n '${{ env.debian-bookworm-amd64 }},' >> $BUILDTARGETS
 
       - name: Add debian-trixie-amd64
         if: ${{ env.BUILD_debian-trixie-amd64 == 'true' }}
-        run: echo -n '${{ env.debian-trixie-amd64 }},' >> $PKGCONF
+        run: echo -n '${{ env.debian-trixie-amd64 }},' >> $BUILDTARGETS
 
-      - name: Set matrix
-        id: set-matrix
+      - name: Add debian-forky-amd64
+        if: ${{ env.BUILD_debian-forky-amd64 == 'true' }}
+        run: echo -n '${{ env.debian-forky-amd64 }},' >> $BUILDTARGETS
+
+      - name: Define targets
+        id: set-targets
         run: |
-          test -f $PKGCONF || { echo "No packages selected"; exit 1; }
-          echo -e "`cat $PKGCONF`\n"
-          echo "matrix={\"include\":[`cat $PKGCONF`]}" >> $GITHUB_OUTPUT
+          test -f $BUILDTARGETS || { echo "No build targets selected"; exit 1; }
+          echo -e "`cat $BUILDTARGETS`\n"
+          echo "targets=[`cat $BUILDTARGETS`]" >> "$GITHUB_OUTPUT"
 
-  build:
+      - name: Define packages
+        id: set-packages
+        run: |
+          echo "packages=$(cat pkginfo.json | tr -d '\n')" >> "$GITHUB_OUTPUT"
+
+  setup:
+    name: Setup ${{ matrix.targets.image }}
     runs-on: ubuntu-latest
     needs: prepare
     strategy:
-      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+      matrix:
+        targets: ${{ fromJSON(needs.prepare.outputs.targets) }}
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Load package info into environment
-        run: |
-          cat ./pkginfo >> $GITHUB_ENV
+      - uses: actions/checkout@v6
 
       - name: Prepare directories
         run: |
           mkdir dl
-          mkdir build_dir
           mkdir cache
 
-      # dh-make and devscripts are only used for the package build
       - name: Install pbuilder, Debian tools, keyrings
         run: |
           sudo apt-get update
-          sudo apt-get install -yq pbuilder qemu-user-static debian-archive-keyring devscripts dh-make
+          sudo apt-get install -yq pbuilder qemu-user-static debian-archive-keyring
           wget -O dl/raspbian-archive-keyring.deb http://archive.raspbian.org/raspbian/pool/main/r/raspbian-archive-keyring/raspbian-archive-keyring_20120528.4_all.deb
           sudo dpkg -i dl/raspbian-archive-keyring.deb
           wget -O dl/raspberrypi-archive-keyring.deb http://archive.raspberrypi.org/debian/pool/main/r/raspberrypi-archive-keyring/raspberrypi-archive-keyring_2025.1+rpt1_all.deb
@@ -133,42 +146,97 @@ jobs:
 
       - name: Cache pbuilder image
         id: cache-image
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
-          path: cache/${{ matrix.image }}-base.tgz
-          key: ${{ matrix.image }}
+          path: cache/${{ matrix.targets.image }}-base.tgz
+          key: ${{ matrix.targets.image }}
 
-      - name: Restore image from cache
-        if: steps.cache-image.outputs.cache-hit == 'true'
-        run: |
-          sudo cp cache/${{ matrix.image }}-base.tgz /var/cache/pbuilder/
-          sudo OS=${{ matrix.OS }} DIST=${{ matrix.DIST }} ARCH=${{ matrix.ARCH }} pbuilder update --configfile pbuilderrc
-      - name: Or create pbuilder image
+      - name: Create pbuilder image
         if: steps.cache-image.outputs.cache-hit != 'true'
         run: |
-          sudo OS=${{ matrix.OS }} DIST=${{ matrix.DIST }} ARCH=${{ matrix.ARCH }} pbuilder create --configfile pbuilderrc
-          cp /var/cache/pbuilder/${{ matrix.image }}-base.tgz cache/
-
-      - name: Download and unpack OwnTone
+          sudo OS=${{ matrix.targets.OS }} DIST=${{ matrix.targets.DIST }} ARCH=${{ matrix.targets.ARCH }} pbuilder create --configfile pbuilderrc
+      - name: Or update image from cache
+        if: steps.cache-image.outputs.cache-hit == 'true'
         run: |
-          wget -O build_dir/${{ env.PKGNAME }}_${{ env.VER }}.orig.tar.gz https://github.com/${{ env.OWNER }}/${{ env.REPOSITORY }}/archive/${{ env.COMMIT }}.tar.gz
-          tar xzf build_dir/${{ env.PKGNAME }}_${{ env.VER }}.orig.tar.gz --directory build_dir
-          mv build_dir/${{ env.REPOSITORY }}-$COMMIT build_dir/${{ env.PKGNAME }}-${{ env.VER }}
-          cp -a ${{ env.REPOSITORY }}/debian build_dir/${{ env.PKGNAME }}-${{ env.VER }}
+          sudo cp cache/${{ matrix.targets.image }}-base.tgz /var/cache/pbuilder/
+          sudo OS=${{ matrix.targets.OS }} DIST=${{ matrix.targets.DIST }} ARCH=${{ matrix.targets.ARCH }} pbuilder update --configfile pbuilderrc
+
+      - name: Copy pbuilder image to cache dir
+        run: |
+          cp /var/cache/pbuilder/${{ matrix.targets.image }}-base.tgz cache/
+
+  build:
+    name: Build ${{ matrix.packages.name }} (${{ matrix.targets.image }})
+    runs-on: ubuntu-latest
+    needs: [prepare, setup]
+    strategy:
+      fail-fast: false
+      matrix:
+        targets: ${{ fromJSON(needs.prepare.outputs.targets) }}
+        packages: ${{ fromJSON(needs.prepare.outputs.packages) }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Prepare directories
+        run: |
+          mkdir dl
+          mkdir cache
+          mkdir build_dir
+
+      # dh-make and devscripts are only used for the package build
+      - name: Install pbuilder, Debian tools, keyrings
+        run: |
+          sudo apt-get update
+          sudo apt-get install -yq pbuilder qemu-user-static debian-archive-keyring devscripts dh-make
+
+      - name: Restore pbuilder image
+        id: cache-image
+        uses: actions/cache@v5
+        with:
+          path: cache/${{ matrix.targets.image }}-base.tgz
+          key: ${{ matrix.targets.image }}
+          fail-on-cache-miss: true
+
+      - name: Copy pbuilder image to work dir
+        run: |
+          sudo cp cache/${{ matrix.targets.image }}-base.tgz /var/cache/pbuilder/
+
+      - name: Download source
+        env:
+          pkgname: ${{ matrix.packages.name }}
+          version: ${{ matrix.packages.version }}
+          owner: ${{ matrix.packages.owner }}
+          repository: ${{ matrix.packages.repository }}
+          commit: ${{ matrix.packages.commit }}
+        run: |
+          echo "Downloading from https://github.com/${owner}/${repository}/archive/${commit}.tar.gz to build_dir/${pkgname}_${version}.orig.tar.gz"
+          wget -O build_dir/${pkgname}_${version}.orig.tar.gz https://github.com/${owner}/${repository}/archive/${commit}.tar.gz
+          tar xzf build_dir/${pkgname}_${version}.orig.tar.gz --directory build_dir
+          cp -a ${repository}/debian build_dir/${repository}-${commit}
 
       # The below uses a method of creating changelog and setting versions that
       # isn't very kosher. I don't know how to use the proper method while still
       # creating different packages for different distributions that can be
       # served from one repo.
-      - name: Build OwnTone package
-        working-directory: build_dir/${{ env.PKGNAME }}-${{ env.VER }}
+      - name: Build package
+        working-directory: build_dir/${{ matrix.packages.repository }}-${{ matrix.packages.commit }}
+        env:
+          pkgname: ${{ matrix.packages.name }}
+          version: ${{ matrix.packages.version }}
+          deb: ${{ matrix.packages.deb }}
+          commit: ${{ matrix.packages.commit }}
+          dist: ${{ matrix.targets.DIST }}
+          os: ${{ matrix.targets.OS }}
+          arch: ${{ matrix.targets.ARCH }}
+          flags: ${{ matrix.targets.FLAGS }}
         run: |
-          dch --create --package ${{ env.PKGNAME }} --newversion ${{ env.VER }}-${{ env.DEB }}+${{ matrix.DIST }} --distribution ${{ matrix.DIST }} --force-distribution "Dummy changelog @commit ${{ env.COMMIT }}"
-          sudo OS=${{ matrix.OS }} DIST=${{ matrix.DIST }} ARCH=${{ matrix.ARCH }} DEB_BUILD_OPTIONS="parallel=$(nproc) nocheck" pdebuild --configfile ../../pbuilderrc ${{ matrix.FLAGS }}
+          dch --create --package ${pkgname} --newversion ${version}-${deb}+${dist} --distribution ${dist} --force-distribution "Dummy changelog @commit ${commit}"
+          sudo OS=${os} DIST=${dist} ARCH=${arch} DEB_BUILD_OPTIONS="parallel=$(nproc) nocheck" pdebuild --configfile ../../pbuilderrc ${flags}
           rm debian/changelog
 
       - name: Upload dpkg
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          name: ${{ matrix.image }}
-          path: /var/cache/pbuilder/result/${{ matrix.image }}
+          name: ${{ matrix.packages.name }}_${{ matrix.targets.image }}
+          path: /var/cache/pbuilder/result/${{ matrix.targets.image }}
