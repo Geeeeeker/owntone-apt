@@ -1,265 +1,47 @@
-name: Build Ubuntu packages
+name: Build Owntone Debian Package
 
 on:
-  workflow_dispatch:  # 仅支持手动触发（定时已取消）
-    inputs:
-      ubuntu-focal-amd64:
-        type: boolean
-        description: "Ubuntu 20.04 (Focal) amd64"
-      ubuntu-focal-i386:
-        type: boolean
-        description: "Ubuntu 20.04 (Focal) i386"
-      ubuntu-focal-arm64:
-        type: boolean
-        description: "Ubuntu 20.04 (Focal) arm64"
-      ubuntu-focal-armhf:
-        type: boolean
-        description: "Ubuntu 20.04 (Focal) armhf"
-      ubuntu-jammy-amd64:
-        type: boolean
-        description: "Ubuntu 22.04 (Jammy) amd64"
-      ubuntu-jammy-i386:
-        type: boolean
-        description: "Ubuntu 22.04 (Jammy) i386"
-      ubuntu-jammy-arm64:
-        type: boolean
-        description: "Ubuntu 22.04 (Jammy) arm64"
-      ubuntu-jammy-armhf:
-        type: boolean
-        description: "Ubuntu 22.04 (Jammy) armhf"
-      ubuntu-noble-amd64:
-        type: boolean
-        description: "Ubuntu 24.04 (Noble) amd64"
-      ubuntu-noble-arm64:
-        type: boolean
-        description: "Ubuntu 24.04 (Noble) arm64"
-  # schedule:  # 定时编译已取消，保留代码以备将来使用
-  #   - cron: '7 7 24 * *'
-
-permissions:
-  contents: write  # 允许创建 Release 和上传资产
-
-env:
-  ubuntu-focal-amd64: '{"image":"ubuntu-focal-amd64","OS":"ubuntu","DIST":"focal","ARCH":"amd64","FLAGS":"-- --binary-arch"}'
-  ubuntu-focal-i386:  '{"image":"ubuntu-focal-i386","OS":"ubuntu","DIST":"focal","ARCH":"i386","FLAGS":"-- --binary-arch"}'
-  ubuntu-focal-arm64: '{"image":"ubuntu-focal-arm64","OS":"ubuntu","DIST":"focal","ARCH":"arm64","FLAGS":"-- --binary-arch"}'
-  ubuntu-focal-armhf: '{"image":"ubuntu-focal-armhf","OS":"ubuntu","DIST":"focal","ARCH":"armhf","FLAGS":"-- --binary-arch"}'
-  ubuntu-jammy-amd64: '{"image":"ubuntu-jammy-amd64","OS":"ubuntu","DIST":"jammy","ARCH":"amd64","FLAGS":"-- --binary-arch"}'
-  ubuntu-jammy-i386:  '{"image":"ubuntu-jammy-i386","OS":"ubuntu","DIST":"jammy","ARCH":"i386","FLAGS":"-- --binary-arch"}'
-  ubuntu-jammy-arm64: '{"image":"ubuntu-jammy-arm64","OS":"ubuntu","DIST":"jammy","ARCH":"arm64","FLAGS":"-- --binary-arch"}'
-  ubuntu-jammy-armhf: '{"image":"ubuntu-jammy-armhf","OS":"ubuntu","DIST":"jammy","ARCH":"armhf","FLAGS":"-- --binary-arch"}'
-  ubuntu-noble-amd64: '{"image":"ubuntu-noble-amd64","OS":"ubuntu","DIST":"noble","ARCH":"amd64","FLAGS":"-- --binary-arch"}'
-  ubuntu-noble-arm64: '{"image":"ubuntu-noble-arm64","OS":"ubuntu","DIST":"noble","ARCH":"arm64","FLAGS":"-- --binary-arch"}'
+  # 取消定时编译，改用 push 或手动触发（可根据需要选择）
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:   # 允许手动触发
 
 jobs:
-  prepare:
-    name: Plan builds
-    runs-on: ubuntu-latest
-    outputs:
-      targets: ${{ steps.set-targets.outputs.targets }}
-      packages: ${{ steps.set-packages.outputs.packages }}
-    env:
-      BUILDTARGETS: buildtargets.json
-      BUILD_ubuntu-focal-amd64: ${{ github.event.inputs.ubuntu-focal-amd64 || 'true' }}
-      BUILD_ubuntu-focal-i386:  ${{ github.event.inputs.ubuntu-focal-i386  || 'true' }}
-      BUILD_ubuntu-focal-arm64: ${{ github.event.inputs.ubuntu-focal-arm64 || 'true' }}
-      BUILD_ubuntu-focal-armhf: ${{ github.event.inputs.ubuntu-focal-armhf || 'true' }}
-      BUILD_ubuntu-jammy-amd64: ${{ github.event.inputs.ubuntu-jammy-amd64 || 'true' }}
-      BUILD_ubuntu-jammy-i386:  ${{ github.event.inputs.ubuntu-jammy-i386  || 'true' }}
-      BUILD_ubuntu-jammy-arm64: ${{ github.event.inputs.ubuntu-jammy-arm64 || 'true' }}
-      BUILD_ubuntu-jammy-armhf: ${{ github.event.inputs.ubuntu-jammy-armhf || 'true' }}
-      BUILD_ubuntu-noble-amd64: ${{ github.event.inputs.ubuntu-noble-amd64 || 'true' }}
-      BUILD_ubuntu-noble-arm64: ${{ github.event.inputs.ubuntu-noble-arm64 || 'true' }}
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Add ubuntu-focal-amd64
-        if: ${{ env.BUILD_ubuntu-focal-amd64 == 'true' }}
-        run: echo -n '${{ env.ubuntu-focal-amd64 }},' >> $BUILDTARGETS
-      - name: Add ubuntu-focal-i386
-        if: ${{ env.BUILD_ubuntu-focal-i386 == 'true' }}
-        run: echo -n '${{ env.ubuntu-focal-i386 }},' >> $BUILDTARGETS
-      - name: Add ubuntu-focal-arm64
-        if: ${{ env.BUILD_ubuntu-focal-arm64 == 'true' }}
-        run: echo -n '${{ env.ubuntu-focal-arm64 }},' >> $BUILDTARGETS
-      - name: Add ubuntu-focal-armhf
-        if: ${{ env.BUILD_ubuntu-focal-armhf == 'true' }}
-        run: echo -n '${{ env.ubuntu-focal-armhf }},' >> $BUILDTARGETS
-      - name: Add ubuntu-jammy-amd64
-        if: ${{ env.BUILD_ubuntu-jammy-amd64 == 'true' }}
-        run: echo -n '${{ env.ubuntu-jammy-amd64 }},' >> $BUILDTARGETS
-      - name: Add ubuntu-jammy-i386
-        if: ${{ env.BUILD_ubuntu-jammy-i386 == 'true' }}
-        run: echo -n '${{ env.ubuntu-jammy-i386 }},' >> $BUILDTARGETS
-      - name: Add ubuntu-jammy-arm64
-        if: ${{ env.BUILD_ubuntu-jammy-arm64 == 'true' }}
-        run: echo -n '${{ env.ubuntu-jammy-arm64 }},' >> $BUILDTARGETS
-      - name: Add ubuntu-jammy-armhf
-        if: ${{ env.BUILD_ubuntu-jammy-armhf == 'true' }}
-        run: echo -n '${{ env.ubuntu-jammy-armhf }},' >> $BUILDTARGETS
-      - name: Add ubuntu-noble-amd64
-        if: ${{ env.BUILD_ubuntu-noble-amd64 == 'true' }}
-        run: echo -n '${{ env.ubuntu-noble-amd64 }},' >> $BUILDTARGETS
-      - name: Add ubuntu-noble-arm64
-        if: ${{ env.BUILD_ubuntu-noble-arm64 == 'true' }}
-        run: echo -n '${{ env.ubuntu-noble-arm64 }},' >> $BUILDTARGETS
-
-      - name: Define targets
-        id: set-targets
-        run: |
-          test -f $BUILDTARGETS || { echo "No build targets selected"; exit 1; }
-          echo "targets=[$(cat $BUILDTARGETS | sed 's/,$//')]" >> "$GITHUB_OUTPUT"
-
-      - name: Define packages
-        id: set-packages
-        run: |
-          echo "packages=$(cat pkginfo.json | tr -d '\n')" >> "$GITHUB_OUTPUT"
-
-  setup:
-    name: Setup pbuilder image for ${{ matrix.targets.image }}
-    runs-on: ubuntu-latest
-    needs: prepare
-    strategy:
-      matrix:
-        targets: ${{ fromJSON(needs.prepare.outputs.targets) }}
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Prepare directories
-        run: |
-          mkdir -p dl cache
-
-      - name: Install pbuilder, qemu-user-static, Ubuntu keyring
-        run: |
-          sudo apt-get update
-          sudo apt-get install -yq pbuilder qemu-user-static ubuntu-keyring devscripts dh-make
-
-      - name: Cache pbuilder image
-        id: cache-image
-        uses: actions/cache@v5
-        with:
-          path: cache/${{ matrix.targets.image }}-base.tgz
-          key: ${{ matrix.targets.image }}
-
-      - name: Create pbuilder image
-        if: steps.cache-image.outputs.cache-hit != 'true'
-        run: |
-          sudo OS=${{ matrix.targets.OS }} DIST=${{ matrix.targets.DIST }} ARCH=${{ matrix.targets.ARCH }} pbuilder create --configfile pbuilderrc --architecture ${{ matrix.targets.ARCH }}
-
-      - name: Update pbuilder image from cache
-        if: steps.cache-image.outputs.cache-hit == 'true'
-        run: |
-          sudo cp cache/${{ matrix.targets.image }}-base.tgz /var/cache/pbuilder/
-          sudo OS=${{ matrix.targets.OS }} DIST=${{ matrix.targets.DIST }} ARCH=${{ matrix.targets.ARCH }} pbuilder update --configfile pbuilderrc --architecture ${{ matrix.targets.ARCH }}
-
-      - name: Copy pbuilder image to cache dir
-        run: |
-          cp /var/cache/pbuilder/${{ matrix.targets.image }}-base.tgz cache/
-
   build:
-    name: Build ${{ matrix.packages.name }} for ${{ matrix.targets.image }}
     runs-on: ubuntu-latest
-    needs: [prepare, setup]
     strategy:
-      fail-fast: false
       matrix:
-        targets: ${{ fromJSON(needs.prepare.outputs.targets) }}
-        packages: ${{ fromJSON(needs.prepare.outputs.packages) }}
+        distro: [jammy]
+        arch: [amd64, i386]   # i386 架构需要特别处理
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Prepare directories
-        run: |
-          mkdir -p dl cache build_dir
-
-      - name: Install pbuilder, qemu-user-static, Ubuntu keyring
+      - name: Install pbuilder and dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -yq pbuilder qemu-user-static ubuntu-keyring devscripts dh-make
+          sudo apt-get install -y pbuilder debootstrap devscripts
 
-      - name: Restore pbuilder image from cache
-        id: cache-image
-        uses: actions/cache@v5
-        with:
-          path: cache/${{ matrix.targets.image }}-base.tgz
-          key: ${{ matrix.targets.image }}
-          fail-on-cache-miss: true
-
-      - name: Copy pbuilder image to work dir
+      - name: Prepare pbuilder base.tgz (if not exists)
         run: |
-          sudo cp cache/${{ matrix.targets.image }}-base.tgz /var/cache/pbuilder/
+          sudo pbuilder create \
+            --distribution ${{ matrix.distro }} \
+            --architecture ${{ matrix.arch }} \
+            --othermirror "deb http://archive.ubuntu.com/ubuntu ${{ matrix.distro }} universe" \
+            --debootstrapopts --variant=buildd
 
-      - name: Download source
-        env:
-          pkgname: ${{ matrix.packages.name }}
-          version: ${{ matrix.packages.version }}
-          owner: ${{ matrix.packages.owner }}
-          repository: ${{ matrix.packages.repository }}
-          commit: ${{ matrix.packages.commit }}
+      - name: Build package with pbuilder
         run: |
-          echo "Downloading from https://github.com/${owner}/${repository}/archive/${commit}.tar.gz to build_dir/${pkgname}_${version}.orig.tar.gz"
-          wget -O build_dir/${pkgname}_${version}.orig.tar.gz https://github.com/${owner}/${repository}/archive/${commit}.tar.gz
-          tar xzf build_dir/${pkgname}_${version}.orig.tar.gz --directory build_dir
-          cp -a ${repository}/debian build_dir/${repository}-${commit}
+          cd owntone-server/debian   # 根据您的目录结构调整
+          # 假设 dsc 文件位于上一层
+          sudo pbuilder build \
+            --distribution ${{ matrix.distro }} \
+            --architecture ${{ matrix.arch }} \
+            --othermirror "deb http://archive.ubuntu.com/ubuntu ${{ matrix.distro }} universe" \
+            ../*.dsc
 
-      - name: Build package
-        working-directory: build_dir/${{ matrix.packages.repository }}-${{ matrix.packages.commit }}
-        env:
-          pkgname: ${{ matrix.packages.name }}
-          version: ${{ matrix.packages.version }}
-          deb: ${{ matrix.packages.deb }}
-          commit: ${{ matrix.packages.commit }}
-          dist: ${{ matrix.targets.DIST }}
-          os: ${{ matrix.targets.OS }}
-          arch: ${{ matrix.targets.ARCH }}
-          flags: ${{ matrix.targets.FLAGS }}
-        run: |
-          dch --create --package ${pkgname} --newversion ${version}-${deb}+${dist} --distribution ${dist} --force-distribution "Dummy changelog @commit ${commit}"
-          sudo OS=${os} DIST=${dist} ARCH=${arch} DEB_BUILD_OPTIONS="parallel=$(nproc) nocheck" pdebuild --configfile ../../pbuilderrc ${flags}
-          rm debian/changelog
-
-      - name: Upload dpkg artifacts
-        uses: actions/upload-artifact@v6
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.packages.name }}_${{ matrix.targets.image }}
-          path: /var/cache/pbuilder/result/${{ matrix.targets.image }}/
-
-  release:
-    name: Create Release and upload packages
-    runs-on: ubuntu-latest
-    needs: [prepare, build]  # 等待所有构建完成
-    if: always() && needs.build.result == 'success'  # 仅当构建成功时运行
-    steps:
-      - name: Generate timestamp
-        id: timestamp
-        run: echo "time=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: packages
-          pattern: '*_*'  # 下载所有匹配的 artifact（包名_目标名）
-          merge-multiple: true
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: packages/*
-          tag_name: ubuntu-packages-${{ steps.timestamp.outputs.time }}
-          name: "Ubuntu Packages - ${{ steps.timestamp.outputs.time }}"
-          body: |
-            This release contains Debian packages for Ubuntu built from:
-            - owntone-server (commit ${{ fromJSON(needs.prepare.outputs.packages)[0].commit }})
-            - airptpd (commit ${{ fromJSON(needs.prepare.outputs.packages)[1].commit }})
-
-            Supported Ubuntu releases:
-            - Focal (20.04)
-            - Jammy (22.04)
-            - Noble (24.04)
-
-            Architectures: amd64, i386, arm64, armhf (where available)
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: owntone-${{ matrix.distro }}-${{ matrix.arch }}
+          path: /var/cache/pbuilder/result/*.deb
