@@ -3,7 +3,6 @@ name: Build Ubuntu packages
 on:
   workflow_dispatch:
     inputs:
-      # 发行版选择
       ubuntu-focal-amd64:
         type: boolean
         description: "Ubuntu 20.04 (Focal) amd64"
@@ -34,12 +33,10 @@ on:
       ubuntu-noble-arm64:
         type: boolean
         description: "Ubuntu 24.04 (Noble) arm64"
-      # 注意：Ubuntu 24.04 官方不再支持 i386 和 armhf，故省略
   schedule:
-    # 每月自动构建一次
+    # 每月自动构建一次（默认构建所有目标）
     - cron: '7 7 24 * *'
 
-# 定义每个目标的元数据（json字符串）
 env:
   ubuntu-focal-amd64: '{"image":"ubuntu-focal-amd64","OS":"ubuntu","DIST":"focal","ARCH":"amd64","FLAGS":"-- --binary-arch"}'
   ubuntu-focal-i386:  '{"image":"ubuntu-focal-i386","OS":"ubuntu","DIST":"focal","ARCH":"i386","FLAGS":"-- --binary-arch"}'
@@ -61,7 +58,6 @@ jobs:
       packages: ${{ steps.set-packages.outputs.packages }}
     env:
       BUILDTARGETS: buildtargets.json
-      # 为每个目标定义是否构建（手动触发时读取输入，定时任务默认构建所有）
       BUILD_ubuntu-focal-amd64: ${{ github.event.inputs.ubuntu-focal-amd64 || 'true' }}
       BUILD_ubuntu-focal-i386:  ${{ github.event.inputs.ubuntu-focal-i386  || 'true' }}
       BUILD_ubuntu-focal-arm64: ${{ github.event.inputs.ubuntu-focal-arm64 || 'true' }}
@@ -147,13 +143,13 @@ jobs:
       - name: Create pbuilder image
         if: steps.cache-image.outputs.cache-hit != 'true'
         run: |
-          sudo OS=${{ matrix.targets.OS }} DIST=${{ matrix.targets.DIST }} ARCH=${{ matrix.targets.ARCH }} pbuilder create --configfile pbuilderrc
+          sudo OS=${{ matrix.targets.OS }} DIST=${{ matrix.targets.DIST }} ARCH=${{ matrix.targets.ARCH }} pbuilder create --configfile pbuilderrc --architecture ${{ matrix.targets.ARCH }}
 
       - name: Update pbuilder image from cache
         if: steps.cache-image.outputs.cache-hit == 'true'
         run: |
           sudo cp cache/${{ matrix.targets.image }}-base.tgz /var/cache/pbuilder/
-          sudo OS=${{ matrix.targets.OS }} DIST=${{ matrix.targets.DIST }} ARCH=${{ matrix.targets.ARCH }} pbuilder update --configfile pbuilderrc
+          sudo OS=${{ matrix.targets.OS }} DIST=${{ matrix.targets.DIST }} ARCH=${{ matrix.targets.ARCH }} pbuilder update --configfile pbuilderrc --architecture ${{ matrix.targets.ARCH }}
 
       - name: Copy pbuilder image to cache dir
         run: |
