@@ -33,6 +33,13 @@ on:
       ubuntu-noble-arm64:
         type: boolean
         description: "Ubuntu 24.04 (Noble) arm64"
+      # 新增 Ubuntu 26.04 选项（代号待定，请替换 DIST 为实际代号）
+      ubuntu-26.04-amd64:
+        type: boolean
+        description: "Ubuntu 26.04 (???) amd64"
+      ubuntu-26.04-arm64:
+        type: boolean
+        description: "Ubuntu 26.04 (???) arm64"
 
 permissions:
   contents: write
@@ -48,6 +55,9 @@ env:
   ubuntu-jammy-armhf: '{"image":"ubuntu-jammy-armhf","OS":"ubuntu","DIST":"jammy","ARCH":"armhf","FLAGS":"-- --binary-arch"}'
   ubuntu-noble-amd64: '{"image":"ubuntu-noble-amd64","OS":"ubuntu","DIST":"noble","ARCH":"amd64","FLAGS":"-- --binary-arch"}'
   ubuntu-noble-arm64: '{"image":"ubuntu-noble-arm64","OS":"ubuntu","DIST":"noble","ARCH":"arm64","FLAGS":"-- --binary-arch"}'
+  # 新增 26.04 配置（DIST 暂用 "26.04"，请替换为正式代号）
+  ubuntu-26.04-amd64: '{"image":"ubuntu-26.04-amd64","OS":"ubuntu","DIST":"26.04","ARCH":"amd64","FLAGS":"-- --binary-arch"}'
+  ubuntu-26.04-arm64: '{"image":"ubuntu-26.04-arm64","OS":"ubuntu","DIST":"26.04","ARCH":"arm64","FLAGS":"-- --binary-arch"}'
 
 jobs:
   prepare:
@@ -68,6 +78,9 @@ jobs:
       BUILD_ubuntu-jammy-armhf: ${{ github.event.inputs.ubuntu-jammy-armhf || 'true' }}
       BUILD_ubuntu-noble-amd64: ${{ github.event.inputs.ubuntu-noble-amd64 || 'true' }}
       BUILD_ubuntu-noble-arm64: ${{ github.event.inputs.ubuntu-noble-arm64 || 'true' }}
+      # 新增 26.04 环境变量
+      BUILD_ubuntu-26.04-amd64: ${{ github.event.inputs.ubuntu-26.04-amd64 || 'true' }}
+      BUILD_ubuntu-26.04-arm64: ${{ github.event.inputs.ubuntu-26.04-arm64 || 'true' }}
 
     steps:
       - uses: actions/checkout@v6
@@ -102,6 +115,13 @@ jobs:
       - name: Add ubuntu-noble-arm64
         if: ${{ env.BUILD_ubuntu-noble-arm64 == 'true' }}
         run: echo -n '${{ env.ubuntu-noble-arm64 }},' >> $BUILDTARGETS
+      # 新增 26.04 添加步骤
+      - name: Add ubuntu-26.04-amd64
+        if: ${{ env.BUILD_ubuntu-26.04-amd64 == 'true' }}
+        run: echo -n '${{ env.ubuntu-26.04-amd64 }},' >> $BUILDTARGETS
+      - name: Add ubuntu-26.04-arm64
+        if: ${{ env.BUILD_ubuntu-26.04-arm64 == 'true' }}
+        run: echo -n '${{ env.ubuntu-26.04-arm64 }},' >> $BUILDTARGETS
 
       - name: Define targets
         id: set-targets
@@ -202,7 +222,6 @@ jobs:
         if: ${{ matrix.targets.ARCH == 'i386' }}
         working-directory: build_dir/${{ matrix.packages.repository }}-${{ matrix.packages.commit }}
         run: |
-          # 修改 debian/rules，将 --enable-chromecast 替换为 --disable-chromecast
           sed -i 's/--enable-chromecast/--disable-chromecast/g' debian/rules
           echo "Disabled Chromecast support for i386 build"
       - name: Build package
@@ -257,6 +276,7 @@ jobs:
             - Focal (20.04)
             - Jammy (22.04)
             - Noble (24.04)
+            - 26.04 (???)  # 新增
             Architectures: amd64, i386, arm64, armhf (where available)
           draft: false
           prerelease: false
