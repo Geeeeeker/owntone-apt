@@ -32,11 +32,12 @@ fi
 
 NAME="$OS-$DIST-$ARCH"
 
-# 预安装一些依赖以加速构建（可根据实际调整）
+# 预安装依赖（包括 libwebsockets-dev）
 EXTRAPACKAGES="debhelper autoconf libtool gettext gawk bison flex gperf \
   libavcodec-dev libavformat-dev libavutil-dev libavfilter-dev \
   libavahi-client-dev libsqlite3-dev libconfuse-dev libxml2-dev \
-  libasound2-dev libpulse-dev zlib1g-dev libunistring-dev libevent-dev"
+  libasound2-dev libpulse-dev zlib1g-dev libunistring-dev libevent-dev \
+  libwebsockets-dev"
 
 # 设置 pbuilder 路径
 BASEDIR="/var/cache"
